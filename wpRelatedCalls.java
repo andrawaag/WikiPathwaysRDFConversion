@@ -264,15 +264,18 @@ public class wpRelatedCalls {
 		Resource dataNodeResource = model.createResource(mainUrl.replace("$id", dataNodeIdentifier));
 
 		Resource identifiersOrgResource= model.createResource();
-		Resource curationError = model.createResource(Wp.getURI()+"curationError");
 		if (dataNodeDataSource == ""){
 			dataNodeResource = model.createResource("http://internal.wikipathways.org/noDataSource/"+ UUID.randomUUID());
-			dataNodeResource.addProperty(RDF.type, curationError);
+			dataNodeResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
+			dataNodeResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no DataSource set. ");
 			if (dataNodeIdentifier==""){
 				identifiersOrgResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/noIdentifier");
+				identifiersOrgResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
+				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
 			} else {
 				identifiersOrgResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/noDataSource/"+dataNodeIdentifier);
-				identifiersOrgResource.addProperty(RDF.type, Wp.requiresCurationAttention);
+				identifiersOrgResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
+				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
 			}
 		}
 		else {
@@ -280,7 +283,8 @@ public class wpRelatedCalls {
 			if ((dataNodeIdentifier=="") || (dataNodeIdentifier==null)){
 				dataNodeResource= model.createResource(conceptUrl.replace("$id", "noIdentifier"));
 				identifiersOrgResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/noIdentifier");
-				dataNodeResource.addProperty(RDF.type, curationError);
+				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
+				dataNodeResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
 			} else {
 				dataNodeResource= model.createResource(conceptUrl.replace("$id", dataNodeIdentifier));
 				identifiersOrgResource = model.createResource(identifiersorgURI + dataNodeIdentifier);

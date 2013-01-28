@@ -254,15 +254,15 @@ public class wpRelatedCalls {
 		} else if (nonRDFURIURI != null){
 			conceptUrl = nonRDFURIURI;
 		}
-		
+
 		String dataNodeGraphId = "";
 		if (dataNode.getAttributes().getNamedItem("GraphId")!=null){
 			dataNodeGraphId = dataNode.getAttributes().getNamedItem("GraphId").getTextContent().trim();
 		}
-		
-		Resource internalWPDataNodeResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/+dataNodeGraphId");
+
+		Resource internalWPDataNodeResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/"+dataNodeGraphId);
 		Resource dataNodeResource = model.createResource(mainUrl.replace("$id", dataNodeIdentifier));
-		
+
 		Resource identifiersOrgResource= model.createResource();
 		Resource curationError = model.createResource(Wp.getURI()+"curationError");
 		if (dataNodeDataSource == ""){
@@ -276,7 +276,7 @@ public class wpRelatedCalls {
 			}
 		}
 		else {
-			System.out.println(dataNodeIdentifier);
+			//System.out.println(dataNodeIdentifier);
 			if ((dataNodeIdentifier=="") || (dataNodeIdentifier==null)){
 				dataNodeResource= model.createResource(conceptUrl.replace("$id", "noIdentifier"));
 				identifiersOrgResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/noIdentifier");
@@ -341,8 +341,6 @@ public class wpRelatedCalls {
 	}
 
 	public static void addLineTriples(Model model, Resource pwResource, Node lineNode, String wpId, String revId){
-		NamedGraphSet graphset = new NamedGraphSetImpl();
-
 		// Make Line Resource
 		String graphId = String.valueOf(UUID.randomUUID()); //No graphRef set.
 		if (lineNode.getAttributes().getNamedItem("GraphId")!=null){
@@ -372,8 +370,7 @@ public class wpRelatedCalls {
 		NodeList points = ((Element) lineGraphics.item(0)).getElementsByTagName("Point");
 		List<String> graphRefs = new ArrayList<String>();
 		List<String> arrowHeads = new ArrayList<String>();
-		List<String> arrowTowards = new ArrayList<String>(); 
-		
+		List<String> arrowTowards = new ArrayList<String>(); 	
 		for (int i=0; i<points.getLength(); i++){
 			String arrowHead = "";
 			if (points.item(i).getAttributes().getNamedItem("ArrowHead")!= null){ 
@@ -441,7 +438,7 @@ public class wpRelatedCalls {
 					interactionResource.addProperty(RDF.type, Wp.Modification);
 				if (arrowHeads.get(0).equals("mim-gap"))
 					interactionResource.addProperty(RDF.type, Wp.Gap);
-				
+
 			}
 
 			String queryString = 
@@ -506,15 +503,26 @@ public class wpRelatedCalls {
 
 		NodeList anchors = ((Element) lineGraphics.item(0)).getElementsByTagName("Anchor");
 		for (int i=0; i<anchors.getLength(); i++){
-			String anchorGraphId = anchors.item(i).getAttributes().getNamedItem("GraphId").getTextContent().trim();
-			String parentLineGraphId = anchors.item(i).getParentNode().getAttributes().getNamedItem("GraphId").getTextContent().trim();
+			String anchorGraphId = "";
+			if ( anchors.item(i).getAttributes().getNamedItem("GraphId") != null){
+				anchorGraphId = anchors.item(i).getAttributes().getNamedItem("GraphId").getTextContent().trim();
+			}
 			String anchorPosition = "";
 			if (anchors.item(i).getAttributes().getNamedItem("Position")!=null){
 				anchorPosition = anchors.item(i).getAttributes().getNamedItem("Position").getTextContent().trim();
 			}
 			String anchorShape = anchors.item(i).getAttributes().getNamedItem("Shape").getTextContent().trim();
 			//TODO add Anchor to GPML
-			Resource anchorResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/Line/"+parentLineGraphId+"/anchor/"+anchorGraphId);
+			Boolean uuidset = false;
+			if (anchorGraphId == ""){
+				anchorGraphId = String.valueOf(UUID.randomUUID());
+				uuidset = true;
+			}
+			Resource anchorResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/Line/"+graphId+"/anchor/"+anchorGraphId);
+			if (uuidset){
+				anchorResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
+				anchorResource.addLiteral(RDFS.comment, "This anchor does not have a graphId set");
+			}
 			anchorResource.addProperty(RDF.type, Gpml.Anchor);
 			anchorResource.addLiteral(Gpml.graphid, anchorGraphId);
 			if (anchorPosition != ""){
@@ -634,11 +642,11 @@ public class wpRelatedCalls {
 			if (commentType.equals("WikiPathways-category")){
 				if (commentContents.equals("Physiological Process")){
 					pwResource.addProperty(Wp.category, Wp.PhysiologicalProcess);
-					System.out.println(commentType);
+					//System.out.println(commentType);
 				}
 				if (commentContents.equals("Metabolic Process")){
 					pwResource.addProperty(Wp.category, Wp.MetabolicProcess);
-					System.out.println(commentType);
+					//System.out.println(commentType);
 				}
 				if (commentContents.equals("Cellular Process")){
 					pwResource.addProperty(Wp.category, Wp.CellularProcess);

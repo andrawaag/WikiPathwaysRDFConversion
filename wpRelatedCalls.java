@@ -26,6 +26,7 @@ import org.bridgedb.IDMapper;
 import org.bridgedb.IDMapperException;
 import org.bridgedb.IDMapperStack;
 import org.bridgedb.Xref;
+import org.bridgedb.bio.BioDataSource;
 import org.pathvisio.model.ConverterException;
 import org.pathvisio.model.DataNodeType;
 import org.pathvisio.model.GraphLink.GraphIdContainer;
@@ -175,7 +176,7 @@ public class wpRelatedCalls {
 		return pathwayResource;
 	}
 
-	public static void addDataNodeTriples(Model model, Resource pwResource, Node dataNode, String wpId, String revId, Model bridgeDbModel) throws IOException, IDMapperException{
+	public static void addDataNodeTriples(Model model, Resource pwResource, Node dataNode, String wpId, String revId, Model bridgeDbModel, IDMapper mapper) throws IOException, IDMapperException{
 		String dataNodeLabel = dataNode.getAttributes().getNamedItem("TextLabel").getTextContent().trim();
 		String dataNodeType="";
 		if (dataNode.getAttributes().getNamedItem("Type") != null){ 
@@ -187,7 +188,8 @@ public class wpRelatedCalls {
 		}
 		String dataNodeDataSource = ((Element) dataNode).getElementsByTagName("Xref").item(0).getAttributes().getNamedItem("Database").getTextContent().trim();
 		String dataNodeIdentifier = ((Element) dataNode).getElementsByTagName("Xref").item(0).getAttributes().getNamedItem("ID").getTextContent().trim().replace(" ", "_");
-
+        String unifiedDataNodeIdentifier = "";
+        String seeAlsoIdentifier = "";
 		Float dataNodeGraphicsCenterX = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("CenterX").getTextContent().trim());
 		Float dataNodeGraphicsCenterY = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("CenterY").getTextContent().trim());
 		Float dataNodeGraphicsHeight = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("Height").getTextContent().trim());
@@ -244,9 +246,7 @@ public class wpRelatedCalls {
 				identifiersorgURI = solution.get("identifiers_org_base").toString();
 			}
 		}
-
 		String conceptUrl = "http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/unknownDataSource/$id";
-
 		if (sourceRDFURI!= null) {
 			conceptUrl = sourceRDFURI;
 		} else if (bio2RdfURI != null){
@@ -262,10 +262,9 @@ public class wpRelatedCalls {
 
 		Resource internalWPDataNodeResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/"+dataNodeGraphId);
 		Resource dataNodeResource = model.createResource(mainUrl.replace("$id", dataNodeIdentifier));
-
 		Resource identifiersOrgResource= model.createResource();
 		if (dataNodeDataSource == ""){
-			dataNodeResource = model.createResource("http://internal.wikipathways.org/noDataSource/"+ UUID.randomUUID());
+			dataNodeResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/noDatasource/"+ UUID.randomUUID());
 			dataNodeResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
 			dataNodeResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no DataSource set. ");
 			if (dataNodeIdentifier==""){
@@ -273,9 +272,6 @@ public class wpRelatedCalls {
 				identifiersOrgResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
 				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
 			} else {
-				identifiersOrgResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/DataNode/noDataSource/"+dataNodeIdentifier);
-				identifiersOrgResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
-				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
 			}
 		}
 		else {
@@ -291,19 +287,113 @@ public class wpRelatedCalls {
 			}
 
 		}
+		Xref idXref = new Xref(dataNodeIdentifier, DataSource.getByFullName(dataNodeDataSource));
+		if (dataNodeType != ""){
+			if (dataNodeType.equals("GeneProduct")){
+				internalWPDataNodeResource.addProperty(RDF.type, Wp.GeneProduct);
+				Set<Xref> unifiedIdXref = mapper.mapID(idXref, BioDataSource.ENSEMBL);
+				Iterator<Xref> iter = unifiedIdXref.iterator();
+				while (iter.hasNext()){
+					Xref unifiedId = (Xref) iter.next();
+				    unifiedDataNodeIdentifier = unifiedId.getId();
+				    Resource unifiedIdResource = model.createResource("http://identifiers.org/ensembl/"+unifiedDataNodeIdentifier);
+				    dataNodeResource.addProperty(Gpml.unifiedIdentifier, unifiedIdResource);
+				}
+				/*
+				Set<Xref> seeAlsoXRef = mapper.mapID(idXref);
+				Iterator<Xref> iter2 = seeAlsoXRef.iterator();
+				while(iter2.hasNext()){
+					Xref seeAlsoId = (Xref) iter2.next();
+					seeAlsoIdentifier = seeAlsoId.getId();
+					sparqlQueryString = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +  
+					"			PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" + 
+					"			PREFIX dc: <http://purl.org/dc/terms/>\n" + 
+					"			PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" + 
+					"			PREFIX schema: <http://schema.org/>\n" + 
+					"			PREFIX bridgeDb: <http://openphacts.cs.man.ac.uk:9090//ontology/DataSource.owl#>\n" + 
+					"			SELECT DISTINCT  ?identifiers_org_base\n" +
+					"			WHERE {\n" +
+					"				?datasource bridgeDb:identifiers_org_base ?identifiers_org_base .\n" +
+					"			}";
+					Query query2 = QueryFactory.create(sparqlQueryString);
+					QueryExecution queryExecution2 = QueryExecutionFactory.create(query2, bridgeDbModel);
+
+					ResultSet resultSet2 = queryExecution2.execSelect();
+					while (resultSet2.hasNext()) {
+						QuerySolution solution = resultSet2.next();
+						if (solution.get("identifiers_org_base") != null){
+							Resource identifiersorgSeeAlsoURI = model.createResource(solution.get("identifiers_org_base").toString().replace("$id",seeAlsoIdentifier));
+							dataNodeResource.addProperty(RDFS.seeAlso, identifiersorgSeeAlsoURI);
+						}
+						
+					}
+					
+					
+				}*/
+				
+			}
+			if (dataNodeType.equals("Metabolite")){
+				internalWPDataNodeResource.addProperty(RDF.type, Wp.Metabolite);
+				Set<Xref> unifiedIdXref = mapper.mapID(idXref, BioDataSource.HMDB);
+				Iterator<Xref> iter = unifiedIdXref.iterator();
+				while (iter.hasNext()){
+					Xref unifiedId = (Xref) iter.next();
+				    unifiedDataNodeIdentifier = unifiedId.getId();
+				    Resource unifiedIdResource = model.createResource("http://identifiers.org/hmdb/"+unifiedDataNodeIdentifier);
+				    dataNodeResource.addProperty(Gpml.unifiedIdentifier, unifiedIdResource);
+				}
+				/*Set<Xref> seeAlsoXRef = mapper.mapID(idXref);
+				Iterator<Xref> iter2 = seeAlsoXRef.iterator();
+				while(iter2.hasNext()){
+					Xref seeAlsoId = (Xref) iter2.next();
+					seeAlsoIdentifier = seeAlsoId.getId();
+					sparqlQueryString = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" + 
+					"			PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" + 
+					"			PREFIX dc: <http://purl.org/dc/terms/>\n" + 
+					"			PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" + 
+					"			PREFIX schema: <http://schema.org/>\n" + 
+					"			PREFIX bridgeDb: <http://openphacts.cs.man.ac.uk:9090//ontology/DataSource.owl#>\n" + 
+					"			SELECT DISTINCT  ?identifiers_org_base\n" +
+					"			WHERE {\n" + 
+					"			    ?datasource bridgeDb:identifiers_org_base ?identifiers_org_base .\n" +
+					"			}";
+					Query query2 = QueryFactory.create(sparqlQueryString);
+					QueryExecution queryExecution2 = QueryExecutionFactory.create(query2, bridgeDbModel);
+
+					ResultSet resultSet2 = queryExecution2.execSelect();
+					while (resultSet2.hasNext()) {
+						QuerySolution solution = resultSet2.next();
+						if (solution.get("identifiers_org_base") != null){
+							Resource identifiersorgSeeAlsoURI = model.createResource(solution.get("identifiers_org_base").toString().replace("$id",seeAlsoIdentifier));
+							dataNodeResource.addProperty(RDFS.seeAlso, identifiersorgSeeAlsoURI);
+						}
+						
+					}
+					
+					
+				}*/
+			}
+			if (dataNodeType.equals("Pathway")){
+				internalWPDataNodeResource.addProperty(RDF.type, Wp.Pathway);
+			}
+			if (dataNodeType.equals("Protein")){
+				internalWPDataNodeResource.addProperty(RDF.type, Wp.Protein);
+			}
+			if (dataNodeType.equals("Complex")){
+				internalWPDataNodeResource.addProperty(RDF.type, Wp.Complex);
+			}
+		}
+		
+		
 		internalWPDataNodeResource.addProperty(RDFS.subClassOf, dataNodeResource);
 		internalWPDataNodeResource.addProperty(DC.identifier, identifiersOrgResource);
 		internalWPDataNodeResource.addLiteral(DCTerms.identifier, dataNodeIdentifier);
-
-
 		if (dataNodeGroupRef != ""){
 
-			Resource groupRefResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/group/"+"/"+dataNodeGroupRef); 
+			Resource groupRefResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/group/"+dataNodeGroupRef); 
 			groupRefResource.addProperty(DCTerms.isPartOf, pwResource);
 			internalWPDataNodeResource.addProperty(DCTerms.isPartOf, groupRefResource);
 		}
-
-
 		//Mapping to GPML
 		internalWPDataNodeResource.addLiteral(DC.source, dataNodeDataSource);
 		internalWPDataNodeResource.addProperty(RDF.type, Gpml.DataNode);
@@ -322,25 +412,6 @@ public class wpRelatedCalls {
 			internalWPDataNodeResource.addLiteral(Gpml.zorder, dataNodeZorder);
 
 		internalWPDataNodeResource.addProperty(RDFS.isDefinedBy, Gpml.DataNode);
-
-		//Mapping to WP
-		if (dataNodeType != ""){
-			if (dataNodeType.equals("GeneProduct")){
-				internalWPDataNodeResource.addProperty(RDF.type, Wp.GeneProduct);
-			}
-			if (dataNodeType.equals("Metabolite")){
-				internalWPDataNodeResource.addProperty(RDF.type, Wp.Metabolite);
-			}
-			if (dataNodeType.equals("Pathway")){
-				internalWPDataNodeResource.addProperty(RDF.type, Wp.Pathway);
-			}
-			if (dataNodeType.equals("Protein")){
-				internalWPDataNodeResource.addProperty(RDF.type, Wp.Protein);
-			}
-			if (dataNodeType.equals("Complex")){
-				internalWPDataNodeResource.addProperty(RDF.type, Wp.Complex);
-			}
-		}
 
 	}
 
@@ -543,7 +614,7 @@ public class wpRelatedCalls {
 			graphId = labelNode.getAttributes().getNamedItem("GraphId").getTextContent().trim();
 		}
 		String textLabel = labelNode.getAttributes().getNamedItem("TextLabel").getTextContent().trim();
-		Resource labelResource = model.createResource("http://internal.wikipathways.org/GpmlLabel/"+UUID.randomUUID());
+		Resource labelResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/GpmlLabel/"+UUID.randomUUID());
 		labelResource.addProperty(DCTerms.isPartOf, pwResource);
 		labelResource.addLiteral(Gpml.graphid, graphId);
 		labelResource.addLiteral(RDFS.label, textLabel);
@@ -630,7 +701,7 @@ public class wpRelatedCalls {
 		}
 		String groupId = ((Element) groupNode).getAttributes().getNamedItem("GroupId").getTextContent().trim();
 
-		Resource groupResource = model.createResource("http://internal.wikipathways.org/group/"+wpId+"/"+graphId);
+		Resource groupResource = model.createResource("http://rdf.wikipathways.org/Pathway/"+wpId+"_r"+revId+"/group/"+graphId);
 		groupResource.addProperty(RDF.type, Gpml.Group);
 		groupResource.addLiteral(Gpml.graphid, graphId);
 		groupResource.addProperty(DCTerms.isPartOf, pwResource);

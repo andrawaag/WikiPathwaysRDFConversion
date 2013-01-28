@@ -82,6 +82,15 @@ public class Pathway2RDFv2 {
 		int schemaVersion = 0;
 		int latestRevision = 0;
 	
+		BioDataSource.init();
+		Class.forName("org.bridgedb.rdb.IDMapperRdb");
+		File dir = new File("/Users/andra/Downloads/bridge");
+		File[] bridgeDbFiles = dir.listFiles();
+		IDMapperStack mapper = new IDMapperStack();
+		for (File bridgeDbFile : bridgeDbFiles) {
+			System.out.println(bridgeDbFile.getAbsolutePath());
+			mapper.addIDMapper("idmapper-pgdb:" + bridgeDbFile.getAbsolutePath());
+		}
 		 
 		Model bridgeDbmodel = ModelFactory.createDefaultModel();
 		InputStream in = new FileInputStream("/tmp/BioDataSource.ttl");
@@ -178,10 +187,9 @@ public class Pathway2RDFv2 {
             	latestRevision = Integer.valueOf(revision);
             }
 			File f = new File("/tmp/"+args[0]+"/"+wpId+"_r"+revision+".ttl");
-			System.out.println("Start");
 			System.out.println(f.getName());
 			if(!f.exists()) {
-				System.out.println("1");
+				
 				Resource voidPwResource = wpRelatedCalls.addVoidTriples(voidModel, voidBase, pathwayElements.item(i), client);
 				Resource pwResource = wpRelatedCalls.addPathwayLevelTriple(pathwayModel, pathwayElements.item(i), organismTaxonomy);
 				
@@ -196,7 +204,7 @@ public class Pathway2RDFv2 {
 				// Get all the Datanodes
 				NodeList dataNodesElement = ((Element) pathwayElements.item(i)).getElementsByTagName("DataNode");
 				for (int j=0; j<dataNodesElement.getLength(); j++){
-					wpRelatedCalls.addDataNodeTriples(pathwayModel, pwResource, dataNodesElement.item(j), wpId, revision, bridgeDbmodel);
+					wpRelatedCalls.addDataNodeTriples(pathwayModel, pwResource, dataNodesElement.item(j), wpId, revision, bridgeDbmodel, mapper);
 				}
 				// Get all the lines
 				NodeList linesElement = ((Element) pathwayElements.item(i)).getElementsByTagName("Line");
@@ -208,7 +216,6 @@ public class Pathway2RDFv2 {
 				for (int l=0; l<labelsElement.getLength(); l++){
 					wpRelatedCalls.addLabelTriples(pathwayModel, pwResource, labelsElement.item(l), wpId, revision);
 				}
-				System.out.println("5");
 				NodeList referenceElements = ((Element) pathwayElements.item(i)).getElementsByTagName("bp:PublicationXref");
 				for (int m=0; m<referenceElements.getLength(); m++){
 					wpRelatedCalls.addReferenceTriples(pathwayModel, pwResource, referenceElements.item(m), wpId, revision);

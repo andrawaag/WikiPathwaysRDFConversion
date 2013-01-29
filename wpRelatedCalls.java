@@ -280,7 +280,6 @@ public class wpRelatedCalls {
 				identifiersOrgResource.addLiteral(RDFS.comment, "This URI represents a DataNode in GPML where there is no Identifier given set. ");
 				internalWPDataNodeResource.addProperty(RDF.type, Gpml.requiresCurationAttention);
 			} else {
-				internalWPDataNodeResource= model.createResource(conceptUrl.replace("$id", dataNodeIdentifier));
 				identifiersOrgResource = model.createResource(identifiersorgURI + dataNodeIdentifier);
 			}
 
@@ -299,7 +298,7 @@ public class wpRelatedCalls {
 				}
 				Set<Xref> unifiedUniprotIdXref = mapper.mapID(idXref, DataSource.getBySystemCode("S"));
 				Iterator<Xref> iterUniprot = unifiedUniprotIdXref.iterator();
-				while (iter.hasNext()){
+				while (iterUniprot.hasNext()){
 					Xref unifiedUniprotId = (Xref) iterUniprot.next();
 					String unifiedUniprotDataNodeIdentifier = unifiedUniprotId.getId();
 				    Resource unifiedUniprotIdResource = model.createResource("http://identifiers.org/uniprot/"+unifiedUniprotDataNodeIdentifier);

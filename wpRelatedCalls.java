@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -292,7 +293,7 @@ public class wpRelatedCalls {
 				Iterator<Xref> iter = unifiedEnsemblIdXref.iterator();
 				while (iter.hasNext()){
 					Xref unifiedId = (Xref) iter.next();
-					String unifiedEnsemblDataNodeIdentifier = unifiedId.getId();
+					String unifiedEnsemblDataNodeIdentifier = URLEncoder.encode(unifiedId.getId(), "UTF-8");
 				    Resource unifiedEnsemblIdResource = model.createResource("http://identifiers.org/ensembl/"+unifiedEnsemblDataNodeIdentifier);
 				    internalWPDataNodeResource.addProperty(Wp.bdbEnsembl, unifiedEnsemblIdResource);
 				}

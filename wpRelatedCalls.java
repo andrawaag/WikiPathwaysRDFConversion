@@ -355,6 +355,9 @@ public class wpRelatedCalls {
 				    String unifiedHmdbDataNodeIdentifier = unifiedHmdbId.getId();
 				    Resource unifiedHmdbIdResource = model.createResource("http://identifiers.org/hmdb/"+unifiedHmdbDataNodeIdentifier);
 				    internalWPDataNodeResource.addProperty(Wp.bdbHmdb, unifiedHmdbIdResource);
+				    createCHEMINFBits(model,
+				    	internalWPDataNodeResource, CHEMINF.CHEMINF_000408, unifiedHmdbDataNodeIdentifier
+				    );
 				}
 				Set<Xref> unifiedChemspiderIdXref = mapper.mapID(idXref, BioDataSource.CHEMSPIDER);
 				Iterator<Xref> iterChemspider = unifiedChemspiderIdXref.iterator();
@@ -363,6 +366,9 @@ public class wpRelatedCalls {
 				    String unifiedChemspiderDataNodeIdentifier = unifiedChemspiderId.getId();
 				    Resource unifiedChemspiderIdResource = model.createResource("http://identifiers.org/chemspider/"+unifiedChemspiderDataNodeIdentifier);
 				    internalWPDataNodeResource.addProperty(Wp.bdbChemspider, unifiedChemspiderIdResource);
+				    createCHEMINFBits(model,
+					    internalWPDataNodeResource, CHEMINF.CHEMINF_000405, unifiedChemspiderDataNodeIdentifier
+					);
 				}
 				/*Set<Xref> seeAlsoXRef = mapper.mapID(idXref);
 				Iterator<Xref> iter2 = seeAlsoXRef.iterator();
@@ -435,6 +441,16 @@ public class wpRelatedCalls {
 
 		internalWPDataNodeResource.addProperty(RDFS.isDefinedBy, Gpml.DataNode);
 
+	}
+
+	private static void createCHEMINFBits(Model model, Resource internalWPDataNodeResource,
+		Resource identifierResource, String unifiedHmdbDataNodeIdentifier) {
+		Resource cheminfEncodedIDResource = model.createResource(
+			internalWPDataNodeResource.getURI() + "/" + identifierResource.getLocalName()
+		);
+		cheminfEncodedIDResource.addProperty(RDF.type, identifierResource);
+		cheminfEncodedIDResource.addLiteral(SIO.SIO_000300, unifiedHmdbDataNodeIdentifier);
+		internalWPDataNodeResource.addProperty(CHEMINF.CHEMINF_000200, cheminfEncodedIDResource);
 	}
 
 	public static void addLineTriples(Model model, Resource pwResource, Node lineNode, String wpId, String revId){

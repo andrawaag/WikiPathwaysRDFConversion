@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -63,6 +64,61 @@ import de.fuberlin.wiwiss.ng4j.swp.vocabulary.FOAF;
 public class wpRelatedCalls {
 	public static WikiPathwaysClient startWpApiClient() throws MalformedURLException, ServiceException {
 		return new WikiPathwaysClient(new URL("http://www.wikipathways.org/wpi/webservice/webservice.php"));
+	}
+	
+	public static void getUnifiedIdentifiers(Model model, IDMapper  mapper, Xref idXref, Resource internalWPDataNodeResource) throws IDMapperException, UnsupportedEncodingException {
+		//ENSEMBL
+		Set<Xref> unifiedEnsemblIdXref = mapper.mapID(idXref, BioDataSource.ENSEMBL);
+		Iterator<Xref> iter = unifiedEnsemblIdXref.iterator();
+		while (iter.hasNext()){
+			Xref unifiedId = (Xref) iter.next();
+			String unifiedEnsemblDataNodeIdentifier = URLEncoder.encode(unifiedId.getId(), "UTF-8");
+			Resource unifiedEnsemblIdResource = model.createResource("http://identifiers.org/ensembl/"+unifiedEnsemblDataNodeIdentifier);
+			internalWPDataNodeResource.addProperty(Wp.bdbEnsembl, unifiedEnsemblIdResource);
+		}
+		//Uniprot
+		Set<Xref> unifiedUniprotIdXref = mapper.mapID(idXref, DataSource.getBySystemCode("S"));
+		Iterator<Xref> iterUniprot = unifiedUniprotIdXref.iterator();
+		while (iterUniprot.hasNext()){
+			Xref unifiedUniprotId = (Xref) iterUniprot.next();
+			String unifiedUniprotDataNodeIdentifier = unifiedUniprotId.getId();
+			Resource unifiedUniprotIdResource = model.createResource("http://identifiers.org/uniprot/"+unifiedUniprotDataNodeIdentifier);
+			internalWPDataNodeResource.addProperty(Wp.bdbUniprot, unifiedUniprotIdResource);
+		}
+		//Entrez Gene
+		Set<Xref> unifiedEntrezGeneIdXref = mapper.mapID(idXref, BioDataSource.ENTREZ_GENE);
+		Iterator<Xref> iterEntrezGene = unifiedEntrezGeneIdXref.iterator();
+		while (iterEntrezGene.hasNext()){
+			Xref unifiedEntrezGeneId = (Xref) iterEntrezGene.next();
+			String unifiedEntrezGeneDataNodeIdentifier = unifiedEntrezGeneId.getId();
+			Resource unifiedEntrezGeneIdResource = model.createResource("http://identifiers.org/entrez.gene/"+unifiedEntrezGeneDataNodeIdentifier);
+			internalWPDataNodeResource.addProperty(Wp.bdbEntrezGene, unifiedEntrezGeneIdResource);
+		}
+		//HMDB
+		Set<Xref> unifiedHmdbIdXref = mapper.mapID(idXref, BioDataSource.HMDB);
+		Iterator<Xref> iterHmdb = unifiedHmdbIdXref.iterator();
+		while (iterHmdb.hasNext()){
+			Xref unifiedHmdbId = (Xref) iterHmdb.next();
+			String unifiedHmdbDataNodeIdentifier = unifiedHmdbId.getId();
+			Resource unifiedHmdbIdResource = model.createResource("http://identifiers.org/hmdb/"+unifiedHmdbDataNodeIdentifier);
+			internalWPDataNodeResource.addProperty(Wp.bdbHmdb, unifiedHmdbIdResource);
+			createCHEMINFBits(model,
+					internalWPDataNodeResource, CHEMINF.CHEMINF_000408, unifiedHmdbDataNodeIdentifier
+			);
+		}
+		//CHEMSPIDER
+		Set<Xref> unifiedChemspiderIdXref = mapper.mapID(idXref, BioDataSource.CHEMSPIDER);
+		Iterator<Xref> iterChemspider = unifiedChemspiderIdXref.iterator();
+		while (iterChemspider.hasNext()){
+			Xref unifiedChemspiderId = (Xref) iterChemspider.next();
+			String unifiedChemspiderDataNodeIdentifier = unifiedChemspiderId.getId();
+			Resource unifiedChemspiderIdResource = model.createResource("http://identifiers.org/chemspider/"+unifiedChemspiderDataNodeIdentifier);
+			internalWPDataNodeResource.addProperty(Wp.bdbChemspider, unifiedChemspiderIdResource);
+			createCHEMINFBits(model,
+					internalWPDataNodeResource, CHEMINF.CHEMINF_000405, unifiedChemspiderDataNodeIdentifier
+			);
+		}
+		
 	}
 
 	public static Document addWpProvenance(Document currentGPML, String wpIdentifier, String wpRevision) throws ConverterException, ParserConfigurationException, SAXException, IOException{	
@@ -189,7 +245,7 @@ public class wpRelatedCalls {
 		}
 		String dataNodeDataSource = ((Element) dataNode).getElementsByTagName("Xref").item(0).getAttributes().getNamedItem("Database").getTextContent().trim();
 		String dataNodeIdentifier = ((Element) dataNode).getElementsByTagName("Xref").item(0).getAttributes().getNamedItem("ID").getTextContent().trim().replace(" ", "_");
- 		Float dataNodeGraphicsCenterX = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("CenterX").getTextContent().trim());
+		Float dataNodeGraphicsCenterX = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("CenterX").getTextContent().trim());
 		Float dataNodeGraphicsCenterY = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("CenterY").getTextContent().trim());
 		Float dataNodeGraphicsHeight = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("Height").getTextContent().trim());
 		Float dataNodeGraphicsWidth = Float.valueOf(((Element) dataNode).getElementsByTagName("Graphics").item(0).getAttributes().getNamedItem("Width").getTextContent().trim());
@@ -245,7 +301,7 @@ public class wpRelatedCalls {
 				identifiersorgURI = solution.get("identifiers_org_base").toString();
 			}
 		}
-		String conceptUrl = "$id"; // The ConceptUrl is the main URI for a given skos:concept in WikiPathways
+		String conceptUrl = "http://rdf.wikipathways.org/error/$id"; // The ConceptUrl is the main URI for a given skos:concept in WikiPathways
 		if (sourceRDFURI!= null) {
 			conceptUrl = sourceRDFURI;
 		} else if (bio2RdfURI != null){
@@ -289,30 +345,7 @@ public class wpRelatedCalls {
 		if (dataNodeType != ""){
 			if (dataNodeType.equals("GeneProduct")){
 				internalWPDataNodeResource.addProperty(RDF.type, Wp.GeneProduct);
-				Set<Xref> unifiedEnsemblIdXref = mapper.mapID(idXref, BioDataSource.ENSEMBL);
-				Iterator<Xref> iter = unifiedEnsemblIdXref.iterator();
-				while (iter.hasNext()){
-					Xref unifiedId = (Xref) iter.next();
-					String unifiedEnsemblDataNodeIdentifier = URLEncoder.encode(unifiedId.getId(), "UTF-8");
-				    Resource unifiedEnsemblIdResource = model.createResource("http://identifiers.org/ensembl/"+unifiedEnsemblDataNodeIdentifier);
-				    internalWPDataNodeResource.addProperty(Wp.bdbEnsembl, unifiedEnsemblIdResource);
-				}
-				Set<Xref> unifiedUniprotIdXref = mapper.mapID(idXref, DataSource.getBySystemCode("S"));
-				Iterator<Xref> iterUniprot = unifiedUniprotIdXref.iterator();
-				while (iterUniprot.hasNext()){
-					Xref unifiedUniprotId = (Xref) iterUniprot.next();
-					String unifiedUniprotDataNodeIdentifier = unifiedUniprotId.getId();
-				    Resource unifiedUniprotIdResource = model.createResource("http://identifiers.org/uniprot/"+unifiedUniprotDataNodeIdentifier);
-				    internalWPDataNodeResource.addProperty(Wp.bdbUniprot, unifiedUniprotIdResource);
-				}
-				Set<Xref> unifiedEntrezGeneIdXref = mapper.mapID(idXref, BioDataSource.ENTREZ_GENE);
-				Iterator<Xref> iterEntrezGene = unifiedEntrezGeneIdXref.iterator();
-				while (iterEntrezGene.hasNext()){
-					Xref unifiedEntrezGeneId = (Xref) iterEntrezGene.next();
-					String unifiedEntrezGeneDataNodeIdentifier = unifiedEntrezGeneId.getId();
-				    Resource unifiedEntrezGeneIdResource = model.createResource("http://identifiers.org/entrez.gene/"+unifiedEntrezGeneDataNodeIdentifier);
-				    internalWPDataNodeResource.addProperty(Wp.bdbEntrezGene, unifiedEntrezGeneIdResource);
-				}
+				getUnifiedIdentifiers(model, mapper, idXref, internalWPDataNodeResource);
 				/*
 				Set<Xref> seeAlsoXRef = mapper.mapID(idXref);
 				Iterator<Xref> iter2 = seeAlsoXRef.iterator();
@@ -327,7 +360,7 @@ public class wpRelatedCalls {
 					"			PREFIX bridgeDb: <http://openphacts.cs.man.ac.uk:9090//ontology/DataSource.owl#>\n" + 
 					"			SELECT DISTINCT  ?identifiers_org_base\n" +
 					"			WHERE {\n" +
-					"				?datasource bridgeDb:identifiers_org_base ?identifiers_org_base .\n" +
+					"				?datasource ?identifiers_org_base .\n" +
 					"			}";
 					Query query2 = QueryFactory.create(sparqlQueryString);
 					QueryExecution queryExecution2 = QueryExecutionFactory.create(query2, bridgeDbModel);
@@ -339,37 +372,17 @@ public class wpRelatedCalls {
 							Resource identifiersorgSeeAlsoURI = model.createResource(solution.get("identifiers_org_base").toString().replace("$id",seeAlsoIdentifier));
 							dataNodeResource.addProperty(RDFS.seeAlso, identifiersorgSeeAlsoURI);
 						}
-						
+
 					}
-					
-					
+
+
 				}*/
-				
+
 			}
 			if (dataNodeType.equals("Metabolite")){
 				internalWPDataNodeResource.addProperty(RDF.type, Wp.Metabolite);
-				Set<Xref> unifiedHmdbIdXref = mapper.mapID(idXref, BioDataSource.HMDB);
-				Iterator<Xref> iterHmdb = unifiedHmdbIdXref.iterator();
-				while (iterHmdb.hasNext()){
-					Xref unifiedHmdbId = (Xref) iterHmdb.next();
-				    String unifiedHmdbDataNodeIdentifier = unifiedHmdbId.getId();
-				    Resource unifiedHmdbIdResource = model.createResource("http://identifiers.org/hmdb/"+unifiedHmdbDataNodeIdentifier);
-				    internalWPDataNodeResource.addProperty(Wp.bdbHmdb, unifiedHmdbIdResource);
-				    createCHEMINFBits(model,
-				    	internalWPDataNodeResource, CHEMINF.CHEMINF_000408, unifiedHmdbDataNodeIdentifier
-				    );
-				}
-				Set<Xref> unifiedChemspiderIdXref = mapper.mapID(idXref, BioDataSource.CHEMSPIDER);
-				Iterator<Xref> iterChemspider = unifiedChemspiderIdXref.iterator();
-				while (iterChemspider.hasNext()){
-					Xref unifiedChemspiderId = (Xref) iterChemspider.next();
-				    String unifiedChemspiderDataNodeIdentifier = unifiedChemspiderId.getId();
-				    Resource unifiedChemspiderIdResource = model.createResource("http://identifiers.org/chemspider/"+unifiedChemspiderDataNodeIdentifier);
-				    internalWPDataNodeResource.addProperty(Wp.bdbChemspider, unifiedChemspiderIdResource);
-				    createCHEMINFBits(model,
-					    internalWPDataNodeResource, CHEMINF.CHEMINF_000405, unifiedChemspiderDataNodeIdentifier
-					);
-				}
+				getUnifiedIdentifiers(model, mapper, idXref, internalWPDataNodeResource);
+
 				/*Set<Xref> seeAlsoXRef = mapper.mapID(idXref);
 				Iterator<Xref> iter2 = seeAlsoXRef.iterator();
 				while(iter2.hasNext()){
@@ -395,26 +408,31 @@ public class wpRelatedCalls {
 							Resource identifiersorgSeeAlsoURI = model.createResource(solution.get("identifiers_org_base").toString().replace("$id",seeAlsoIdentifier));
 							dataNodeResource.addProperty(RDFS.seeAlso, identifiersorgSeeAlsoURI);
 						}
-						
+
 					}
-					
-					
+
+
 				}*/
 			}
 			if (dataNodeType.equals("Pathway")){
 				internalWPDataNodeResource.addProperty(RDF.type, Wp.Pathway);
+				getUnifiedIdentifiers(model, mapper, idXref, internalWPDataNodeResource);
 			}
 			if (dataNodeType.equals("Protein")){
 				internalWPDataNodeResource.addProperty(RDF.type, Wp.Protein);
+				getUnifiedIdentifiers(model, mapper, idXref, internalWPDataNodeResource);
 			}
 			if (dataNodeType.equals("Complex")){
 				internalWPDataNodeResource.addProperty(RDF.type, Wp.Complex);
+				getUnifiedIdentifiers(model, mapper, idXref, internalWPDataNodeResource);
 			}
 		}
-		
-		
-		internalWPDataNodeResource.addProperty(RDFS.subClassOf, dataNodeResource);
-		internalWPDataNodeResource.addProperty(DC.identifier, identifiersOrgResource);
+
+
+		if ((dataNodeResource != null) && (dataNodeDataSource != "")){ 
+			internalWPDataNodeResource.addProperty(RDFS.subClassOf, dataNodeResource);
+		}
+		if (identifiersorgURI != null) internalWPDataNodeResource.addProperty(DC.identifier, identifiersOrgResource);
 		internalWPDataNodeResource.addLiteral(DCTerms.identifier, dataNodeIdentifier);
 		if (dataNodeGroupRef != ""){
 
@@ -423,7 +441,9 @@ public class wpRelatedCalls {
 			internalWPDataNodeResource.addProperty(DCTerms.isPartOf, groupRefResource);
 		}
 		//Mapping to GPML
-		internalWPDataNodeResource.addLiteral(DC.source, dataNodeDataSource);
+		if ((dataNodeDataSource != "") && (dataNodeDataSource != null)){
+			internalWPDataNodeResource.addLiteral(DC.source, dataNodeDataSource);
+		}
 		internalWPDataNodeResource.addProperty(RDF.type, Gpml.DataNode);
 		internalWPDataNodeResource.addProperty(RDF.type, Skos.Concept);
 		internalWPDataNodeResource.addProperty(DCTerms.isPartOf, pwResource);
@@ -444,9 +464,9 @@ public class wpRelatedCalls {
 	}
 
 	private static void createCHEMINFBits(Model model, Resource internalWPDataNodeResource,
-		Resource identifierResource, String unifiedHmdbDataNodeIdentifier) {
+			Resource identifierResource, String unifiedHmdbDataNodeIdentifier) {
 		Resource cheminfEncodedIDResource = model.createResource(
-			internalWPDataNodeResource.getURI() + "/" + identifierResource.getLocalName()
+				internalWPDataNodeResource.getURI() + "/" + identifierResource.getLocalName()
 		);
 		cheminfEncodedIDResource.addProperty(RDF.type, identifierResource);
 		cheminfEncodedIDResource.addLiteral(SIO.SIO_000300, unifiedHmdbDataNodeIdentifier);

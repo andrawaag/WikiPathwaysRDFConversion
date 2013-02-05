@@ -468,9 +468,9 @@ public class wpRelatedCalls {
 		Resource cheminfEncodedIDResource = model.createResource(
 				internalWPDataNodeResource.getURI() + "/" + identifierResource.getLocalName()
 		);
+		internalWPDataNodeResource.addProperty(CHEMINF.CHEMINF_000200, cheminfEncodedIDResource);
 		cheminfEncodedIDResource.addProperty(RDF.type, identifierResource);
 		cheminfEncodedIDResource.addLiteral(SIO.SIO_000300, unifiedHmdbDataNodeIdentifier);
-		internalWPDataNodeResource.addProperty(CHEMINF.CHEMINF_000200, cheminfEncodedIDResource);
 	}
 
 	public static void addLineTriples(Model model, Resource pwResource, Node lineNode, String wpId, String revId){
